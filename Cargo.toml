@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-crossbeam = "0.8.4"
+tinyio-core = { path = "./tinyio-core" }
+tinyio-macro = { path = "./tinyio-macro" }
 
 [dev-dependencies]
 isahc = "1.7.2"
+
+[workspace]
+members = ["tinyio-core", "tinyio-macro"]
+resolver = "2"

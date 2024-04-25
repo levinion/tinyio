@@ -476,8 +476,26 @@ dependencies = [
 name = "tinyio"
 version = "0.1.0"
 dependencies = [
- "crossbeam",
  "isahc",
+ "tinyio-core",
+ "tinyio-macro",
+]
+
+[[package]]
+name = "tinyio-core"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+]
+
+[[package]]
+name = "tinyio-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "tinyio-core",
 ]
 
 [[package]]

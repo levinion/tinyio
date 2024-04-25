@@ -1,10 +1,5 @@
-# TinyIO
+use isahc::AsyncReadResponseExt;
 
-A tiny Rust concurrency runtime library.
-
-## Example
-
-```rust
 #[tinyio::main]
 async fn main() {
     let mut res =
@@ -13,4 +8,3 @@ async fn main() {
             .unwrap();
     println!("{}", res.text().await.unwrap());
 }
-```
