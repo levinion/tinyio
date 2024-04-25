@@ -16,14 +16,14 @@ pub fn run() {
             Some(task) => {
                 let mut future_slot = task.future.lock().unwrap();
                 if let Some(mut future) = future_slot.take() {
+                    let mut first = task.first.lock().unwrap();
+                    if *first {
+                        task_number += 1;
+                        *first = false;
+                    }
                     let waker = Waker::from(task.clone());
                     let mut cx = Context::from_waker(&waker);
                     if future.as_mut().poll(&mut cx).is_pending() {
-                        let mut first = task.first.lock().unwrap();
-                        if *first {
-                            task_number += 1;
-                            *first = false;
-                        }
                         *future_slot = Some(future);
                     } else {
                         task_number -= 1;
