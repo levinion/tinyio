@@ -4,17 +4,20 @@ use quote::quote;
 #[proc_macro_attribute]
 pub fn main(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::ItemFn);
+    let asyncness = input
+        .sig
+        .asyncness
+        .unwrap_or_else(|| panic!("fn main needs to be async fn"));
     let stmts = input.block.stmts;
     let expend = quote! {
         fn main(){
-            let (executor, spawner) = tinyio::init();
-            spawner.spawn({
-                async move {
+            tinyio::init();
+            tinyio::spawn({
+                #asyncness move {
                     #(#stmts)*
                 }
             });
-            drop(spawner);
-            executor.run();
+            tinyio::run();
         }
     };
     expend.into()

@@ -1,62 +1,68 @@
+mod tq;
 use std::pin::Pin;
 use std::sync::Mutex;
+use std::sync::OnceLock;
 use std::task::{Context, Wake, Waker};
 use std::{future::Future, sync::Arc};
 
-use crossbeam::channel::{unbounded, Receiver, Sender};
+use tq::TaskQueue;
 
-pub struct Executor {
-    rx: Receiver<Arc<Task>>,
-}
+static RUNTIME: OnceLock<TaskQueue> = OnceLock::new();
 
-impl Executor {
-    pub fn run(&self) {
-        while let Ok(task) = self.rx.recv() {
-            let mut future_slot = task.future.lock().unwrap();
-            if let Some(mut future) = future_slot.take() {
-                let waker = Waker::from(task.clone());
-                let mut cx = Context::from_waker(&waker);
-                if future.as_mut().poll(&mut cx).is_pending() {
-                    *future_slot = Some(future);
+pub fn run() {
+    let mut task_number = 0;
+    loop {
+        match RUNTIME.get().unwrap().pop() {
+            Some(task) => {
+                let mut future_slot = task.future.lock().unwrap();
+                if let Some(mut future) = future_slot.take() {
+                    let waker = Waker::from(task.clone());
+                    let mut cx = Context::from_waker(&waker);
+                    if future.as_mut().poll(&mut cx).is_pending() {
+                        let mut first = task.first.lock().unwrap();
+                        if *first {
+                            task_number += 1;
+                            *first = false;
+                        }
+                        *future_slot = Some(future);
+                    } else {
+                        task_number -= 1;
+                    }
+                }
+            }
+            None => {
+                if task_number == 0 {
+                    break;
                 }
             }
         }
     }
 }
 
-#[derive(Clone)]
-pub struct Spawner {
-    tx: Sender<Arc<Task>>,
-}
-
-impl Spawner {
-    pub fn spawn(&self, task: impl Future<Output = ()> + 'static + Send) {
-        let task = Task {
-            future: Mutex::new(Some(Box::pin(task))),
-            tx: self.tx.clone(),
-        };
-        self.tx.send(task.into()).unwrap();
-    }
-}
-
 struct Task {
     future: Mutex<Option<Pin<Box<dyn Future<Output = ()> + 'static + Send>>>>,
-    tx: Sender<Arc<Task>>,
+    first: Mutex<bool>,
 }
 
 impl Wake for Task {
     fn wake_by_ref(self: &Arc<Self>) {
-        self.tx.send(self.clone()).unwrap();
+        RUNTIME.get().unwrap().push(self.clone());
     }
 
     fn wake(self: Arc<Self>) {
-        self.tx.send(self.clone()).unwrap();
+        RUNTIME.get().unwrap().push(self.clone());
     }
 }
 
-pub fn init() -> (Executor, Spawner) {
-    let (tx, rx) = unbounded();
-    let executor = Executor { rx };
-    let spawner = Spawner { tx };
-    (executor, spawner)
+pub fn init() {
+    RUNTIME.set(TaskQueue::new()).unwrap();
+}
+
+pub fn spawn(task: impl Future<Output = ()> + 'static + Send) {
+    let tq = RUNTIME.get().unwrap();
+    let task = Task {
+        future: Mutex::new(Some(Box::pin(task))),
+        first: Mutex::new(true),
+    };
+    tq.push(Arc::new(task));
 }
