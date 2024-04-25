@@ -1,11 +1,18 @@
-use std::time::Duration;
+async fn task() {
+    for i in 0..10 {
+        println!("{}", i);
+    }
+}
 
 fn main() {
-    let spawner = tinyio::init();
-    for i in 0..10 {
-        spawner.spawn(move || {
-            println!("{}", i);
-        });
-    }
-    std::thread::sleep(Duration::from_secs(5));
+    let (executor, spawner) = tinyio::init();
+    spawner.spawn({
+        let spawner = spawner.clone();
+        async move {
+            task().await;
+            spawner.spawn(async move { task().await })
+        }
+    });
+    drop(spawner);
+    executor.run();
 }

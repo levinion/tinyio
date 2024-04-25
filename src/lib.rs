@@ -1,78 +1,62 @@
-use crossbeam::channel::{unbounded, Receiver, Sender};
-use std::{
-    sync::{Arc, Mutex},
-    thread,
-};
+use std::pin::Pin;
+use std::sync::Mutex;
+use std::task::{Context, Wake, Waker};
+use std::{future::Future, sync::Arc};
 
-#[derive(Clone)]
-struct Runtime {
-    rx: Receiver<Task>,
+use crossbeam::channel::{unbounded, Receiver, Sender};
+
+pub struct Executor {
+    rx: Receiver<Arc<Task>>,
 }
 
-impl Runtime {
-    pub fn new(rx: Receiver<Task>) -> Self {
-        Self { rx }
-    }
-
-    fn run(&self) {
-        loop {
-            if let Ok(task) = self.rx.recv() {
-                thread::spawn(move || task.call());
+impl Executor {
+    pub fn run(&self) {
+        while let Ok(task) = self.rx.recv() {
+            let mut future_slot = task.future.lock().unwrap();
+            if let Some(mut future) = future_slot.take() {
+                let waker = Waker::from(task.clone());
+                let mut cx = Context::from_waker(&waker);
+                if future.as_mut().poll(&mut cx).is_pending() {
+                    *future_slot = Some(future);
+                }
             }
         }
     }
 }
 
+#[derive(Clone)]
 pub struct Spawner {
-    tx: Sender<Task>,
+    tx: Sender<Arc<Task>>,
 }
 
 impl Spawner {
-    fn new(tx: Sender<Task>) -> Self {
-        Self { tx }
-    }
-
-    pub fn spawn<F>(&self, f: F)
-    where
-        F: FnOnce() + Send + Sync + 'static,
-    {
-        let task = Task::new(f);
-        self.tx.send(task).unwrap();
+    pub fn spawn(&self, task: impl Future<Output = ()> + 'static + Send) {
+        let task = Task {
+            future: Mutex::new(Some(Box::pin(task))),
+            tx: self.tx.clone(),
+        };
+        self.tx.send(task.into()).unwrap();
     }
 }
-
-type SyncFn = Arc<Mutex<Option<Box<dyn FnOnce() + Send + Sync + 'static>>>>;
 
 struct Task {
-    func: SyncFn,
+    future: Mutex<Option<Pin<Box<dyn Future<Output = ()> + 'static + Send>>>>,
+    tx: Sender<Arc<Task>>,
 }
 
-impl Task {
-    fn new<F>(f: F) -> Self
-    where
-        F: FnOnce() + Send + Sync + 'static,
-    {
-        Self {
-            func: Arc::new(Mutex::new(Some(Box::new(f)))),
-        }
+impl Wake for Task {
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.tx.send(self.clone()).unwrap();
     }
 
-    fn call(&self) {
-        let func = self.func.clone();
-        let mut func = func.lock().unwrap();
-        let f = func.take().unwrap();
-        f();
+    fn wake(self: Arc<Self>) {
+        self.tx.send(self.clone()).unwrap();
     }
 }
 
-pub fn init() -> Spawner {
+pub fn init() -> (Executor, Spawner) {
     let (tx, rx) = unbounded();
-    let runtime = Runtime::new(rx);
-    thread::spawn({
-        let runtime = runtime.clone();
-        move || {
-            runtime.run();
-        }
-    });
-    Spawner::new(tx)
+    let executor = Executor { rx };
+    let spawner = Spawner { tx };
+    (executor, spawner)
 }
