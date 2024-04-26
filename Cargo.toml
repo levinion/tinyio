@@ -10,8 +10,8 @@ documentation = "https://docs.rs/tinyio"
 keywords = ["config", "configuration"]
 
 [dependencies]
-tinyio-core = { path = "./tinyio-core" }
-tinyio-macro = { path = "./tinyio-macro" }
+tinyio-core = { path = "./tinyio-core", version = "0.1.0" }
+tinyio-macro = { path = "./tinyio-macro", version = "0.1.0" }
 
 [dev-dependencies]
 isahc = "1.7.2"
