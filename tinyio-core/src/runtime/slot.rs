@@ -3,7 +3,6 @@ use crate::util::signal::{Counter, Signal};
 
 #[derive(Debug, Clone)]
 pub struct ThreadSlot {
-    #[allow(unused)]
     pub index: usize,
     pub worker: Option<Worker>,
 }
@@ -45,7 +44,8 @@ impl ThreadSlots {
         let full = &self.full;
         // if slots are full, then give a slot back
         if full.value() {
-            slots.find(|slot| slot.worker.is_some()).unwrap()
+            let index = (rand::random::<f32>() * self.capacity as f32) as usize;
+            slots.nth(index).unwrap()
         } else {
             // if slots are not full, give a slot back, and check if slots are full
             let slot = slots.find(|slot| slot.worker.is_none()).unwrap();
