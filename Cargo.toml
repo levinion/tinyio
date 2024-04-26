@@ -2,6 +2,12 @@
 name = "tinyio"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["levinion <levinnion@gmail.com>"]
+description = "A tiny Rust concurrency runtime library."
+repository = "https://github.com/levinion/tinyio"
+documentation = "https://docs.rs/tinyio"
+keywords = ["config", "configuration"]
 
 [dependencies]
 tinyio-core = { path = "./tinyio-core" }
