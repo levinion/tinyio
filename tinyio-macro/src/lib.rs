@@ -17,7 +17,8 @@ pub fn main(_attr: TokenStream, input: TokenStream) -> TokenStream {
                     #(#stmts)*
                 }
             });
-            tinyio::run();
+            let mut executor = tinyio::runtime::executor::Executor::new();
+            executor.run();
         }
     };
     expend.into()
