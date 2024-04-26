@@ -2,6 +2,13 @@
 name = "tinyio-macro"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["levinion <levinnion@gmail.com>"]
+description = "Procedural macros of tinyio."
+repository = "https://github.com/levinion/tinyio"
+documentation = "https://docs.rs/tinyio"
+categories = ["asynchronous"]
+keywords = ["runtime", "io", "async", "non-blocking", "futures"]
 
 [lib]
 proc-macro = true

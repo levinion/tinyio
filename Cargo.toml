@@ -7,7 +7,8 @@ authors = ["levinion <levinnion@gmail.com>"]
 description = "A tiny Rust concurrency runtime library."
 repository = "https://github.com/levinion/tinyio"
 documentation = "https://docs.rs/tinyio"
-keywords = ["config", "configuration"]
+categories = ["asynchronous"]
+keywords = ["runtime", "io", "async", "non-blocking", "futures"]
 
 [dependencies]
 tinyio-core = { path = "./tinyio-core", version = "0.1.0" }
